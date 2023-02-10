@@ -1,0 +1,3 @@
+[submodule "task/models"]
+	path = task/models
+	url = git@github.com:GregorR/rnnoise-models.git
