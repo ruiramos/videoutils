@@ -1,5 +1,5 @@
 import { createClient } from "redis";
-import { addTestJobToQueue, processFile } from "./utils.js";
+import { processFile } from "./utils.js";
 
 const redisClient = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
@@ -26,8 +26,9 @@ while (true) {
     console.log("get file from somewhere");
 
     // process file
+    const output = jobData.output || "videos/processed.mp4";
     try {
-      await processFile(jobData.filename, getModelPath(jobData.model));
+      await processFile(jobData.input, output, getModelPath(jobData.model));
     } catch (e) {
       console.error(e);
       continue;

@@ -1,5 +1,5 @@
 import { createClient } from "redis";
-import { addTestJobToQueue } from "./utils.js";
+import { addJobToQueue } from "./utils.js";
 import yargs from "yargs/yargs";
 import { hideBin } from "yargs/helpers";
 const argv = yargs(hideBin(process.argv)).argv;
@@ -12,10 +12,11 @@ redisClient.on("error", (err) => console.log("Redis Client Error", err));
 
 await redisClient.connect();
 
-await addTestJobToQueue(
+await addJobToQueue(
   redisClient,
   removeUndef({
-    filename: argv.filename,
+    input: argv.input || "videos/test1.mp4",
+    output: argv.output || "videos/processed.mp4",
     model: argv.model,
   })
 );
