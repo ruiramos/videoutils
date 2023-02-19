@@ -15,6 +15,8 @@ import * as Minio from "minio";
 import { createClient } from "redis";
 import { v4 as uuidv4 } from "uuid";
 
+import type { Job } from "videoutils-shared/types";
+
 const {
   MINIO_ENDPOINT,
   MINIO_PORT,
@@ -102,6 +104,7 @@ export default async function handler(
     try {
       const object = await minioClient.putObject(bucketName, inFilename, file);
       console.log(object);
+      redisClient.set(`job:${taskId}`, "uploaded");
     } catch (e) {
       res.status(500).send({
         error: e instanceof Error ? e.message : "Error uploading file",
@@ -118,16 +121,15 @@ export default async function handler(
     console.log("Done parsing form!");
 
     if (inFilename) {
-      await redisClient.lPush(
-        "vq",
-        JSON.stringify({
-          id: taskId,
-          bucketIn: bucketName,
-          fileIn: inFilename,
-          bucketOut: MINIO_OUT_BUCKET_NAME || "processed",
-          fileOut: outFilename,
-        })
-      );
+      const job: Job = {
+        id: taskId,
+        bucketIn: bucketName,
+        fileIn: inFilename,
+        bucketOut: MINIO_OUT_BUCKET_NAME || "processed",
+        fileOut: outFilename,
+      };
+
+      await redisClient.lPush("vq", JSON.stringify(job));
 
       res.status(200).send({ message: "Success", id: taskId });
     } else {

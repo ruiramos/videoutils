@@ -5,10 +5,10 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "clean": "rm *.js",
-    "dev": "nodemon --esm index.ts",
-    "build": "tsc",
-    "start": "node index.js",
+    "clean": "rm -rf dist/",
+    "dev": "nodemon -- --esm -C ttypescript index.ts",
+    "build": "ttsc --outDir dist/",
+    "start": "node dist/index.js",
     "ts:watch": "tsc --watch --noEmit",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -28,6 +28,8 @@
     "dotenv": "^16.0.3",
     "minio": "^7.0.32",
     "redis": "^4.6.4",
-    "typia": "^3.4.28"
+    "typia": "^3.4.28",
+    "videoutils-shared": "file:../shared",
+    "winston": "^3.8.2"
   }
 }

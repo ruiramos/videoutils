@@ -2,7 +2,8 @@ import { createClient, RedisClientType } from "redis";
 import { addJobToQueue } from "./utils.js";
 import yargs from "yargs/yargs";
 import { hideBin } from "yargs/helpers";
-import type { Model } from "./utils.js";
+
+import type { Model } from "videoutils-shared/types";
 
 const argv = yargs(hideBin(process.argv))
   .options({

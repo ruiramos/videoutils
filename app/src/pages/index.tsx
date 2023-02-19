@@ -4,16 +4,21 @@ import React, { useRef, FormEvent, useState, useEffect } from "react";
 export default function Home() {
   const [jobId, setJobId] = useState<string>();
   const [status, setStatus] = useState<string>();
-  const inputRef = useRef();
-  const formRef = useRef();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFormSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log(inputRef.current.files);
+
+    if (!inputRef.current) return;
+
+    if (!inputRef.current.files) {
+      // user hasn't picked a file yet
+      return;
+    }
 
     var data = new FormData();
     data.append("file", inputRef.current.files[0]);
-    data.append("user", "hubot");
+    //data.append("user", "hubot");
 
     const res = await fetch("/api/upload", {
       method: "POST",
@@ -27,26 +32,31 @@ export default function Home() {
 
   useEffect(() => {
     if (!jobId) return;
+    checkForUpdates();
     const interval = setInterval(() => {
-      fetch(`/api/status?id=${jobId}`)
-        .then((res) => res.json())
-        .then((res) => {
-          setStatus(res.status);
-          if (res.status === "done") {
-            clearInterval(interval);
-          }
-        })
-        .catch((err) => {
-          console.error(err);
-          setStatus("error");
-          clearInterval(interval);
-        });
+      checkForUpdates(interval);
     }, 2000);
     return () => {
       clearInterval(interval);
       setStatus(undefined);
     };
   }, [jobId]);
+
+  const checkForUpdates = (interval?: NodeJS.Timer) => {
+    return fetch(`/api/status?id=${jobId}`)
+      .then((res) => res.json())
+      .then((res) => {
+        setStatus(res.status);
+        if (res.status === "done") {
+          clearInterval(interval);
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        setStatus("error");
+        clearInterval(interval);
+      });
+  };
 
   return (
     <>

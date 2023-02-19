@@ -2,21 +2,7 @@ import { spawn } from "node:child_process";
 import { rmSync } from "node:fs";
 import { RedisClientType } from "redis";
 
-export type Model =
-  | "GeneralGeneral"
-  | "GeneralVoice"
-  | "RecordingGeneral"
-  | "RecordingVoice"
-  | "RecordingSpeech";
-
-export interface Job {
-  id: string;
-  bucketIn: string;
-  fileIn: string;
-  bucketOut: string;
-  fileOut: string;
-  model?: Model;
-}
+import type { Job } from "videoutils-shared/types";
 
 export async function addJobToQueue(client: RedisClientType, task: Job) {
   const strTask = JSON.stringify(task);

@@ -4,7 +4,7 @@ import * as Minio from "minio";
 import * as dotenv from "dotenv";
 import typia from "typia";
 
-import type { Job } from "./utils";
+import type { Job } from "videoutils-shared/types";
 
 dotenv.config();
 
