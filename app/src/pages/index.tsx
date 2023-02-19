@@ -1,13 +1,52 @@
 import Head from "next/head";
-import React, { useRef, FormEvent } from "react";
+import React, { useRef, FormEvent, useState, useEffect } from "react";
 
 export default function Home() {
+  const [jobId, setJobId] = useState<string>();
+  const [status, setStatus] = useState<string>();
   const inputRef = useRef();
+  const formRef = useRef();
 
-  const handleFormSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleFormSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log(inputRef.current!.files);
+    console.log(inputRef.current.files);
+
+    var data = new FormData();
+    data.append("file", inputRef.current.files[0]);
+    data.append("user", "hubot");
+
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: data,
+    });
+
+    const parsed = await res.json();
+
+    setJobId(parsed.id);
   };
+
+  useEffect(() => {
+    if (!jobId) return;
+    const interval = setInterval(() => {
+      fetch(`/api/status?id=${jobId}`)
+        .then((res) => res.json())
+        .then((res) => {
+          setStatus(res.status);
+          if (res.status === "done") {
+            clearInterval(interval);
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          setStatus("error");
+          clearInterval(interval);
+        });
+    }, 2000);
+    return () => {
+      clearInterval(interval);
+      setStatus(undefined);
+    };
+  }, [jobId]);
 
   return (
     <>
@@ -27,6 +66,10 @@ export default function Home() {
             accept="video/mp4, video/quicktime"
           />
           <button type="submit">Upload</button>
+          {status && <p>{status}</p>}
+          {status === "done" && (
+            <a href={`/api/download?id=${jobId}`}>download video!</a>
+          )}
         </form>
       </main>
     </>
