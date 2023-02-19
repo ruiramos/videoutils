@@ -1,5 +1,28 @@
 import { createClient } from "redis";
 import { processFile } from "./utils.js";
+import * as Minio from "minio";
+import * as dotenv from "dotenv";
+import typia from "typia";
+
+import type { Job } from "./utils";
+
+dotenv.config();
+
+const { MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY } =
+  process.env;
+
+if (!MINIO_ENDPOINT || !MINIO_ACCESS_KEY || !MINIO_SECRET_KEY) {
+  console.error("MinIO env variables not set");
+  process.exit(1);
+}
+
+var minioClient = new Minio.Client({
+  endPoint: MINIO_ENDPOINT,
+  port: MINIO_PORT ? parseInt(MINIO_PORT) : 9000,
+  useSSL: MINIO_ENDPOINT !== "localhost",
+  accessKey: MINIO_ACCESS_KEY,
+  secretKey: MINIO_SECRET_KEY,
+});
 
 const redisClient = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
@@ -17,26 +40,45 @@ while (true) {
   const job = await redisClient.lPop("vq");
 
   if (job) {
-    const jobData = JSON.parse(job);
+    const jobData: Job = JSON.parse(job);
 
     console.log(`Got new task: ${job}`);
 
-    // download file
-    // TODO noop
-    console.log("get file from somewhere");
+    try {
+      typia.assert<Job>(jobData);
+    } catch (e) {
+      console.error(`Job data not conformant to spec: ${e}`);
+      continue;
+    }
+
+    redisClient.set(`job:${jobData.id}`, "processing");
+
+    const inputPath = `/tmp/${jobData.fileIn}`;
+    const outputPath = `/tmp/${jobData.fileOut}`;
+
+    const file = await minioClient.fGetObject(
+      jobData.bucketIn,
+      jobData.fileIn,
+      inputPath
+    );
 
     // process file
-    const output = jobData.output || "videos/processed.mp4";
     try {
-      await processFile(jobData.input, output, getModelPath(jobData.model));
+      await processFile(inputPath, outputPath, getModelPath(jobData.model));
     } catch (e) {
       console.error(e);
       continue;
     }
 
-    // upload file
-    // TODO noop
-    console.log("upload file somewhere");
+    await minioClient.fPutObject(
+      jobData.bucketOut,
+      jobData.fileOut,
+      outputPath
+    );
+
+    // TODO errors and EX
+    redisClient.set(`job:${jobData.id}`, "done");
+    redisClient.set(`job:${jobData.id}:file`, jobData.fileOut);
   } else {
     console.log("sleeping for a while... zzz");
     await new Promise((r) => setTimeout(r, 5000));
