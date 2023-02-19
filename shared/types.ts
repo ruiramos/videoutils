@@ -5,6 +5,7 @@ export interface Job {
   bucketOut: string;
   fileOut: string;
   model?: Model;
+  type: JobType;
 }
 
 export type Model =
@@ -13,3 +14,5 @@ export type Model =
   | "RecordingGeneral"
   | "RecordingVoice"
   | "RecordingSpeech";
+
+type JobType = "NoiseReduction";

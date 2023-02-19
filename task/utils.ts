@@ -31,8 +31,15 @@ export async function processFile(
       console.info(`stdout: ${data}`);
     });
 
+    // ffmpeg logs to stderr for some reason
     ff.stderr.on("data", (data) => {
-      console.error(`stderr: ${data}`);
+      console.log(`stderr: ${data}`);
+      const strData = data.toString();
+      let match;
+      if ((match = strData.match(/Duration: ([^,]*),/))) {
+        // ***** Durataiiiiiiiion: 00:00:27.53
+        console.log("***** Durataiiiiiiiion:", match[1]);
+      }
     });
 
     ff.on("close", (code) => {

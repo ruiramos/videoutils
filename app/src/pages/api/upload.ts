@@ -68,9 +68,15 @@ export default async function handler(
 
   const bucketName = MINIO_IN_BUCKET_NAME || "videos";
 
-  if (!(await minioClient.bucketExists(bucketName))) {
-    console.error("Minio bucket not found");
-    res.status(500).send({ error: "Storage service not ready" });
+  try {
+    if (!(await minioClient.bucketExists(bucketName))) {
+      console.error("Minio bucket not found");
+      res.status(500).send({ error: "Storage service not ready" });
+      return;
+    }
+  } catch (e) {
+    console.error(e);
+    res.status(500).send({ error: "Storage service not available" });
     return;
   }
 
@@ -127,6 +133,7 @@ export default async function handler(
         fileIn: inFilename,
         bucketOut: MINIO_OUT_BUCKET_NAME || "processed",
         fileOut: outFilename,
+        type: "NoiseReduction",
       };
 
       await redisClient.lPush("vq", JSON.stringify(job));

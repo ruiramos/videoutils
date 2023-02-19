@@ -11,4 +11,5 @@ RUN npm install
 
 COPY ./ ./
 
-CMD ["node", "index.js"]
+RUN npm run build
+CMD ["npm", "start"]

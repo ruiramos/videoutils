@@ -32,6 +32,7 @@ await addJobToQueue(redisClient as RedisClientType, {
   bucketIn: bucketIn || "videos",
   bucketOut: bucketOut || "processed",
   model: model as Model | undefined,
+  type: "NoiseReduction",
 });
 
 redisClient.disconnect();

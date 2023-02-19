@@ -56,11 +56,16 @@ while (true) {
     const inputPath = `/tmp/${jobData.fileIn}`;
     const outputPath = `/tmp/${jobData.fileOut}`;
 
-    const file = await minioClient.fGetObject(
-      jobData.bucketIn,
-      jobData.fileIn,
-      inputPath
-    );
+    try {
+      const file = await minioClient.fGetObject(
+        jobData.bucketIn,
+        jobData.fileIn,
+        inputPath
+      );
+    } catch (e) {
+      console.error(e);
+      process.exit(1);
+    }
 
     // process file
     try {
@@ -70,11 +75,16 @@ while (true) {
       continue;
     }
 
-    await minioClient.fPutObject(
-      jobData.bucketOut,
-      jobData.fileOut,
-      outputPath
-    );
+    try {
+      await minioClient.fPutObject(
+        jobData.bucketOut,
+        jobData.fileOut,
+        outputPath
+      );
+    } catch (e) {
+      console.error(e);
+      continue;
+    }
 
     // TODO errors and EX
     redisClient.set(`job:${jobData.id}`, "done");
