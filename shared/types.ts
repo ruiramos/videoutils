@@ -16,3 +16,10 @@ export type Model =
   | "RecordingSpeech";
 
 type JobType = "NoiseReduction";
+
+export type JobStatus =
+  | "uploading"
+  | "uploaded"
+  | "processing"
+  | "done"
+  | "error";

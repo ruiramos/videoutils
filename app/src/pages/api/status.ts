@@ -2,6 +2,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "redis";
 import * as Minio from "minio";
 
+import type { JobStatus } from "videoutils-shared/types";
+
 type Data =
   | {
       error: string;
@@ -54,10 +56,20 @@ export default async function handler(
 
   await redisClient.connect();
 
-  const status = await redisClient.get(`job:${id}`);
+  const maybeStatus = await redisClient.get(`job:${id}`);
 
-  if (!status) {
+  if (!maybeStatus) {
     res.status(404).json({ error: "Video not found" });
+    return;
+  }
+
+  const status: JobStatus = maybeStatus as JobStatus;
+
+  // TODO validate ????
+
+  if (status === "processing") {
+    const progress = await redisClient.get(`job:${id}:progress`);
+    res.status(200).json({ status, progress });
   } else {
     res.status(200).json({ status });
   }

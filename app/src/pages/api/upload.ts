@@ -91,6 +91,8 @@ export default async function handler(
   let outFilename: string;
   let originalFilename: string;
 
+  let uploadPromise: Promise<any>;
+
   bb.on("file", async (name, file, info) => {
     const { filename, encoding, mimeType } = info;
     console.log(
@@ -108,9 +110,15 @@ export default async function handler(
     outFilename = `${now}-${filePath.name}-processed${filePath.ext}`;
 
     try {
-      const object = await minioClient.putObject(bucketName, inFilename, file);
-      console.log(object);
-      redisClient.set(`job:${taskId}`, "uploaded");
+      uploadPromise = minioClient
+        .putObject(bucketName, inFilename, file)
+        .then(async (object) => {
+          console.log(object);
+          redisClient.set(`job:${taskId}`, "uploaded");
+        })
+        .catch((e) => {
+          throw new Error(e);
+        });
     } catch (e) {
       res.status(500).send({
         error: e instanceof Error ? e.message : "Error uploading file",
@@ -126,7 +134,7 @@ export default async function handler(
   bb.on("finish", async () => {
     console.log("Done parsing form!");
 
-    if (inFilename) {
+    uploadPromise.then(async () => {
       const job: Job = {
         id: taskId,
         bucketIn: bucketName,
@@ -137,11 +145,8 @@ export default async function handler(
       };
 
       await redisClient.lPush("vq", JSON.stringify(job));
-
       res.status(200).send({ message: "Success", id: taskId });
-    } else {
-      res.status(500).send({ error: "Couldn't find uploaded file" });
-    }
+    });
   });
 
   req.pipe(bb);

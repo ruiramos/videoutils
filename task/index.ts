@@ -1,5 +1,5 @@
 import { createClient } from "redis";
-import { processFile } from "./utils.js";
+import { removeBgNoise } from "./utils.js";
 import * as Minio from "minio";
 import * as dotenv from "dotenv";
 import typia from "typia";
@@ -48,6 +48,7 @@ while (true) {
       typia.assert<Job>(jobData);
     } catch (e) {
       console.error(`Job data not conformant to spec: ${e}`);
+      redisClient.set(`job:${jobData.id}`, "error");
       continue;
     }
 
@@ -64,14 +65,23 @@ while (true) {
       );
     } catch (e) {
       console.error(e);
-      process.exit(1);
+      redisClient.set(`job:${jobData.id}`, "error");
+      continue;
     }
 
     // process file
     try {
-      await processFile(inputPath, outputPath, getModelPath(jobData.model));
+      await removeBgNoise(
+        inputPath,
+        outputPath,
+        getModelPath(jobData.model),
+        (progress: number) => {
+          redisClient.set(`job:${jobData.id}:progress`, progress.toString());
+        }
+      );
     } catch (e) {
       console.error(e);
+      redisClient.set(`job:${jobData.id}`, "error");
       continue;
     }
 

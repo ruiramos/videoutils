@@ -4,6 +4,7 @@ import React, { useRef, FormEvent, useState, useEffect } from "react";
 export default function Home() {
   const [jobId, setJobId] = useState<string>();
   const [status, setStatus] = useState<string>();
+  const [progress, setProgress] = useState<number>();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFormSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -11,7 +12,7 @@ export default function Home() {
 
     if (!inputRef.current) return;
 
-    if (!inputRef.current.files) {
+    if (!inputRef.current.files?.length) {
       // user hasn't picked a file yet
       return;
     }
@@ -20,14 +21,25 @@ export default function Home() {
     data.append("file", inputRef.current.files[0]);
     //data.append("user", "hubot");
 
-    const res = await fetch("/api/upload", {
-      method: "POST",
-      body: data,
-    });
+    setStatus("uploading");
 
-    const parsed = await res.json();
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: data,
+      });
 
-    setJobId(parsed.id);
+      const parsed = await res.json();
+
+      if (res.status === 200) {
+        setJobId(parsed.id);
+      } else {
+        throw new Error(parsed.error);
+      }
+    } catch (e) {
+      console.error(e);
+      setStatus("error");
+    }
   };
 
   useEffect(() => {
@@ -35,7 +47,7 @@ export default function Home() {
     checkForUpdates();
     const interval = setInterval(() => {
       checkForUpdates(interval);
-    }, 2000);
+    }, 1000);
     return () => {
       clearInterval(interval);
       setStatus(undefined);
@@ -47,8 +59,10 @@ export default function Home() {
       .then((res) => res.json())
       .then((res) => {
         setStatus(res.status);
+        if (res.progress) setProgress(res.progress);
         if (res.status === "done") {
           clearInterval(interval);
+          setProgress(undefined);
         }
       })
       .catch((err) => {
@@ -76,7 +90,11 @@ export default function Home() {
             accept="video/mp4, video/quicktime"
           />
           <button type="submit">Upload</button>
-          {status && <p>{status}</p>}
+          {status && (
+            <p>
+              {status} {progress ? progress + "%" : null}
+            </p>
+          )}
           {status === "done" && (
             <a href={`/api/download?id=${jobId}`}>download video!</a>
           )}
