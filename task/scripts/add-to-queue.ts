@@ -1,5 +1,5 @@
 import { createClient, RedisClientType } from "redis";
-import { addJobToQueue } from "./utils.js";
+import { addJobToQueue } from "../utils.js";
 import yargs from "yargs/yargs";
 import { hideBin } from "yargs/helpers";
 

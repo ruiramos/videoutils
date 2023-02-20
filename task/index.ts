@@ -40,15 +40,18 @@ while (true) {
   const job = await redisClient.lPop("vq");
 
   if (job) {
-    const jobData: Job = JSON.parse(job);
-
     console.log(`Got new task: ${job}`);
 
+    let jobData: Job;
+
     try {
-      typia.assert<Job>(jobData);
+      jobData = typia.assert<Job>(JSON.parse(job));
     } catch (e) {
       console.error(`Job data not conformant to spec: ${e}`);
-      redisClient.set(`job:${jobData.id}`, "error");
+      const parsed = JSON.parse(job);
+      if (parsed.id) {
+        redisClient.set(`job:${parsed.id}`, "error");
+      }
       continue;
     }
 
