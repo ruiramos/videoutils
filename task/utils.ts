@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process";
-import { rmSync } from "node:fs";
 import { RedisClientType } from "redis";
 
 import type { Job } from "videoutils-shared/types";
@@ -18,9 +17,6 @@ export async function removeBgNoise(
 ) {
   let duration: number;
   return new Promise((resolve, reject) => {
-    try {
-      rmSync(output);
-    } catch {}
     const ff = spawn("ffmpeg", [
       "-i",
       filename,
