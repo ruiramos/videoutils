@@ -12,10 +12,10 @@ import type { NextApiRequest, NextApiResponse, PageConfig } from "next";
 import path from "path";
 import busboy from "busboy";
 import * as Minio from "minio";
-import { createClient } from "redis";
+import { createClient, RedisClientType } from "redis";
 import { v4 as uuidv4 } from "uuid";
 
-import type { Job } from "videoutils-shared/types";
+import type { Job, JobStatus } from "videoutils-shared/types";
 
 const {
   MINIO_ENDPOINT,
@@ -82,59 +82,69 @@ export default async function handler(
 
   // create new task id
   const taskId = uuidv4();
+  const updateJobStatus = _updateJobStatus(
+    taskId,
+    redisClient as RedisClientType
+  );
 
   // create job status key on redis - set to uploading
-  redisClient.set(`job:${taskId}`, "uploading");
+  updateJobStatus("uploading");
 
   const bb = busboy({ headers: req.headers });
   let inFilename: string;
   let outFilename: string;
   let originalFilename: string;
 
-  let uploadPromise: Promise<any>;
+  let fileRef: any;
+  let fields: { dryRun?: boolean } = {};
 
-  bb.on("file", async (name, file, info) => {
-    const { filename, encoding, mimeType } = info;
-    console.log(
-      `File [${name}]: filename: %j, encoding: %j, mimeType: %j`,
-      filename,
-      encoding,
-      mimeType
-    );
+  let uploadPromise: Promise<Minio.UploadedObjectInfo>;
 
-    // TODO validate file
+  const bbPromise = new Promise<string | null>((resolve, reject) => {
+    console.log("this is running");
 
-    const filePath = path.parse(filename);
-    const now = Date.now();
-    inFilename = `${now}-${filePath.name}${filePath.ext}`;
-    outFilename = `${now}-${filePath.name}-processed${filePath.ext}`;
+    bb.on("file", async (name, file, info) => {
+      const { filename, encoding, mimeType } = info;
+      console.log(
+        `File [${name}]: filename: %j, encoding: %j, mimeType: %j`,
+        filename,
+        encoding,
+        mimeType
+      );
 
-    try {
-      uploadPromise = minioClient
-        .putObject(bucketName, inFilename, file)
-        .then(async (object) => {
-          console.log(object);
-          redisClient.set(`job:${taskId}`, "uploaded");
-        })
-        .catch((e) => {
-          throw new Error(e);
+      // TODO validate file
+
+      const filePath = path.parse(filename);
+      const now = Date.now();
+      inFilename = `${now}-${filePath.name}${filePath.ext}`;
+      outFilename = `${now}-${filePath.name}-processed${filePath.ext}`;
+
+      try {
+        uploadPromise = minioClient.putObject(bucketName, inFilename, file);
+        const object = await uploadPromise;
+        console.log(object);
+        updateJobStatus("uploaded");
+      } catch (e) {
+        reject({
+          code: 500,
+          message: e instanceof Error ? e.message : "Error uploading file",
         });
-    } catch (e) {
-      res.status(500).send({
-        error: e instanceof Error ? e.message : "Error uploading file",
-      });
-      return;
-    }
-  });
+        return;
+      }
+    });
 
-  bb.on("field", (name, val, info) => {
-    console.log(`Field [${name}]: value: %j`, val);
-  });
+    bb.on("field", (name, val, info) => {
+      console.log(`Field [${name}]: value: %j`, val);
+      if (name === "dryRun") {
+        fields.dryRun = val === "true";
+      }
+    });
 
-  bb.on("finish", async () => {
-    console.log("Done parsing form!");
+    bb.on("finish", async () => {
+      console.log("Done parsing form!");
 
-    uploadPromise.then(async () => {
+      await uploadPromise;
+
       const job: Job = {
         id: taskId,
         bucketIn: bucketName,
@@ -144,12 +154,30 @@ export default async function handler(
         type: "NoiseReduction",
       };
 
+      if (fields.dryRun) {
+        console.log(`Dry run for job: ${JSON.stringify(job)}`);
+        updateJobStatus("done");
+        resolve(taskId);
+        return;
+      }
+
       await redisClient.lPush("vq", JSON.stringify(job));
-      res.status(200).send({ message: "Success", id: taskId });
+      resolve(taskId);
     });
+
+    req.pipe(bb);
   });
 
-  req.pipe(bb);
+  try {
+    const taskId = await bbPromise;
+    if (taskId) {
+      res.status(200).send({ message: "Success", id: taskId });
+    } else {
+      res.status(500).send({ error: "Task id missing" });
+    }
+  } catch (e: any) {
+    res.status(e.code || 500).send({ error: e.message });
+  }
 }
 
 export const config: PageConfig = {
@@ -157,3 +185,8 @@ export const config: PageConfig = {
     bodyParser: false,
   },
 };
+
+const _updateJobStatus =
+  (taskId: string, redisClient: RedisClientType) => (status: JobStatus) => {
+    redisClient.set(`job:${taskId}`, status);
+  };

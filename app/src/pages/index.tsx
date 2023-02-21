@@ -1,25 +1,36 @@
 import Head from "next/head";
 import React, { useRef, FormEvent, useState, useEffect } from "react";
+import {
+  Title,
+  Container,
+  Flex,
+  Button,
+  Select,
+  FileInput,
+  createStyles,
+} from "@mantine/core";
 
 export default function Home() {
   const [jobId, setJobId] = useState<string>();
   const [status, setStatus] = useState<string>();
   const [progress, setProgress] = useState<number>();
-  const inputRef = useRef<HTMLInputElement>(null);
+
+  const [file, setFile] = useState<File | null>(null);
+  const [model, setModel] = useState<string | null>("speech");
 
   const handleFormSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!inputRef.current) return;
-
-    if (!inputRef.current.files?.length) {
+    if (!file) {
       // user hasn't picked a file yet
+      console.warn("no file selected");
       return;
     }
 
     var data = new FormData();
-    data.append("file", inputRef.current.files[0]);
-    //data.append("user", "hubot");
+    data.append("file", file);
+    //data.append("dryRun", "true");
+    model && data.append("model", model);
 
     setStatus("uploading");
 
@@ -80,26 +91,46 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main>
-        <p>this is the video thing</p>
+      <Container>
+        <Title my="md">video background reduction service thing</Title>
 
         <form onSubmit={handleFormSubmit}>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="video/mp4, video/quicktime"
-          />
-          <button type="submit">Upload</button>
-          {status && (
-            <p>
-              {status} {progress ? progress + "%" : null}
-            </p>
-          )}
-          {status === "done" && (
-            <a href={`/api/download?id=${jobId}`}>download video!</a>
-          )}
+          <Flex direction="column" gap="md">
+            <FileInput
+              label="Your video to process please:"
+              value={file}
+              onChange={setFile}
+              accept="video/mp4, video/quicktime"
+              placeholder="Pick file"
+            />
+            <Select
+              label="The model to use"
+              placeholder="Pick one"
+              value={model}
+              onChange={setModel}
+              data={[
+                { value: "speech", label: "Optimise for speech" },
+                { value: "voice", label: "Optimise for voice" },
+                { value: "generic", label: "Generic" },
+              ]}
+            />
+            <Button
+              type="submit"
+              disabled={!!(status && !["done", "error"].includes(status))}
+            >
+              Upload
+            </Button>
+            {status && (
+              <p>
+                {status} {progress ? progress + "%" : null}
+              </p>
+            )}
+            {status === "done" && (
+              <a href={`/api/download?id=${jobId}`}>download video!</a>
+            )}
+          </Flex>
         </form>
-      </main>
+      </Container>
     </>
   );
 }

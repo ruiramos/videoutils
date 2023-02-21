@@ -6,6 +6,7 @@ export interface Job {
   fileOut: string;
   model?: Model;
   type: JobType;
+  dryRun?: boolean;
 }
 
 export type Model =
