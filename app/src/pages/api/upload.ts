@@ -167,7 +167,7 @@ export default async function handler(
         return;
       }
 
-      await redisClient.lPush("vq", JSON.stringify(job));
+      await redisClient.rPush("vq", JSON.stringify(job));
       resolve(taskId);
     });
 

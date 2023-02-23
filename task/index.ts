@@ -38,7 +38,8 @@ await redisClient.connect();
 
 while (true) {
   // get message from queue
-  const job = await redisClient.lPop("vq");
+  //const job = await redisClient.lPop("vq");
+  const job = await redisClient.lMove("vq", "vprocessing", "LEFT", "RIGHT");
 
   if (job) {
     console.log(`Got new task: ${job}`);
@@ -90,7 +91,9 @@ while (true) {
         outputPath,
         getModelPath(jobData.model),
         (progress: number) => {
-          redisClient.set(`job:${jobData.id}:progress`, progress.toString());
+          redisClient.set(`job:${jobData.id}:progress`, progress.toString(), {
+            EX: 60,
+          });
         }
       );
     } catch (e) {

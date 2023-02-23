@@ -31,7 +31,7 @@ export async function removeBgNoise(
 
     // ffmpeg logs to stderr for some reason
     ff.stderr.on("data", (data) => {
-      console.log(`stderr: ${data}`);
+      //console.log(`stderr: ${data}`);
       const strData = data.toString();
       let match;
       if ((match = matchDuration(strData))) {
