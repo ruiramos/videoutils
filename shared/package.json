@@ -2,13 +2,22 @@
   "name": "videoutils-shared",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "type": "module",
+  "exports": {
+    "./types": "./types.ts",
+    "./utils.js": "./dist/utils.js"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc --outDir dist/",
+    "build:watch": "tsc --watch --outDir dist/"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "typescript": "^4.9.5"
+  },
+  "peerDependencies": {
+    "redis": "^4.6.4"
   }
 }

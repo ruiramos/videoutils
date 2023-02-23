@@ -16,6 +16,7 @@ import { createClient, RedisClientType } from "redis";
 import { v4 as uuidv4 } from "uuid";
 
 import type { Job, JobStatus } from "videoutils-shared/types";
+import { _updateJobStatus } from "videoutils-shared/utils.js";
 
 const {
   MINIO_ENDPOINT,
@@ -95,8 +96,7 @@ export default async function handler(
   let outFilename: string;
   let originalFilename: string;
 
-  let fileRef: any;
-  let fields: { dryRun?: boolean } = {};
+  let fields: any = {};
 
   let uploadPromise: Promise<Minio.UploadedObjectInfo>;
 
@@ -135,9 +135,7 @@ export default async function handler(
 
     bb.on("field", (name, val, info) => {
       console.log(`Field [${name}]: value: %j`, val);
-      if (name === "dryRun") {
-        fields.dryRun = val === "true";
-      }
+      fields[name] = val;
     });
 
     bb.on("finish", async () => {
@@ -152,6 +150,14 @@ export default async function handler(
         bucketOut: MINIO_OUT_BUCKET_NAME || "processed",
         fileOut: outFilename,
         type: "NoiseReduction",
+        model:
+          fields.model === "generic"
+            ? "GeneralGeneral"
+            : fields.model === "speech"
+            ? "RecordingSpeech"
+            : fields.model === "voice"
+            ? "RecordingVoice"
+            : undefined,
       };
 
       if (fields.dryRun) {
@@ -185,8 +191,3 @@ export const config: PageConfig = {
     bodyParser: false,
   },
 };
-
-const _updateJobStatus =
-  (taskId: string, redisClient: RedisClientType) => (status: JobStatus) => {
-    redisClient.set(`job:${taskId}`, status);
-  };

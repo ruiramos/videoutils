@@ -1,10 +1,11 @@
-import { createClient } from "redis";
+import { createClient, RedisClientType } from "redis";
 import { removeBgNoise } from "./utils.js";
 import * as Minio from "minio";
 import * as dotenv from "dotenv";
 import typia from "typia";
 
 import type { Job } from "videoutils-shared/types";
+import { _updateJobStatus } from "videoutils-shared/utils.js";
 
 dotenv.config();
 
@@ -50,12 +51,22 @@ while (true) {
       console.error(`Job data not conformant to spec: ${e}`);
       const parsed = JSON.parse(job);
       if (parsed.id) {
-        redisClient.set(`job:${parsed.id}`, "error");
+        const updateJobStatus = _updateJobStatus(
+          parsed.id,
+          redisClient as RedisClientType
+        );
+
+        updateJobStatus("processing");
       }
       continue;
     }
 
-    redisClient.set(`job:${jobData.id}`, "processing");
+    const updateJobStatus = _updateJobStatus(
+      jobData.id,
+      redisClient as RedisClientType
+    );
+
+    updateJobStatus("processing");
 
     const inputPath = `/tmp/${jobData.fileIn}`;
     const outputPath = `/tmp/${jobData.fileOut}`;
@@ -68,7 +79,7 @@ while (true) {
       );
     } catch (e) {
       console.error(e);
-      redisClient.set(`job:${jobData.id}`, "error");
+      updateJobStatus("error");
       continue;
     }
 
@@ -84,7 +95,7 @@ while (true) {
       );
     } catch (e) {
       console.error(e);
-      redisClient.set(`job:${jobData.id}`, "error");
+      updateJobStatus("error");
       continue;
     }
 
@@ -100,7 +111,7 @@ while (true) {
     }
 
     // TODO errors and EX
-    redisClient.set(`job:${jobData.id}`, "done");
+    updateJobStatus("done");
     redisClient.set(`job:${jobData.id}:file`, jobData.fileOut);
   } else {
     console.log("sleeping for a while... zzz");
