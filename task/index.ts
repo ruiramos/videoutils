@@ -1,5 +1,5 @@
 import { createClient, RedisClientType } from "redis";
-import { removeBgNoise } from "./utils.js";
+import { removeBgNoise } from "./utils";
 import * as Minio from "minio";
 import * as dotenv from "dotenv";
 import typia from "typia";
@@ -50,15 +50,6 @@ while (true) {
       jobData = typia.assert<Job>(JSON.parse(job));
     } catch (e) {
       console.error(`Job data not conformant to spec: ${e}`);
-      const parsed = JSON.parse(job);
-      if (parsed.id) {
-        const updateJobStatus = _updateJobStatus(
-          parsed.id,
-          redisClient as RedisClientType
-        );
-
-        updateJobStatus("processing");
-      }
       continue;
     }
 
@@ -80,7 +71,7 @@ while (true) {
       );
     } catch (e) {
       console.error(e);
-      updateJobStatus("error");
+      updateJobStatus("error", jobData);
       continue;
     }
 
@@ -98,7 +89,7 @@ while (true) {
       );
     } catch (e) {
       console.error(e);
-      updateJobStatus("error");
+      updateJobStatus("error", jobData);
       continue;
     }
 
@@ -114,7 +105,7 @@ while (true) {
     }
 
     // TODO errors and EX
-    updateJobStatus("done");
+    updateJobStatus("done", jobData);
     redisClient.set(`job:${jobData.id}:file`, jobData.fileOut);
   } else {
     console.log("sleeping for a while... zzz");

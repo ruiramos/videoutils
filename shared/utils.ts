@@ -1,16 +1,20 @@
 import { RedisClientType } from "redis";
-import { JobStatus } from "./types";
+import { Job, JobStatus } from "./types";
 
-export function _updateJobStatus(taskId: string, redisClient: RedisClientType) {
-  return (status: JobStatus) => {
-    redisClient.set(`job:${taskId}`, status);
+export function _updateJobStatus(id: string, redisClient: RedisClientType) {
+  return (status: JobStatus, job?: Job) => {
+    redisClient.set(`job:${id}`, status);
+
+    if (!job) return;
 
     if (status === "done") {
-      redisClient.lRem("vprocessing", 0, taskId);
-      redisClient.rPush("vdone", taskId);
+      let jobStr = JSON.stringify(job);
+      redisClient.lRem("vprocessing", 0, jobStr);
+      redisClient.rPush("vdone", jobStr);
     } else if (status === "error") {
-      redisClient.lRem("vprocessing", 0, taskId);
-      redisClient.rPush("verror", taskId);
+      let jobStr = JSON.stringify(job);
+      redisClient.lRem("vprocessing", 0, jobStr);
+      redisClient.rPush("verror", jobStr);
     }
   };
 }
